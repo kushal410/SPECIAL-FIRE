@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Virtual Firecracker Festival</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            background: linear-gradient(to bottom, #0a0a1a 0%, #1a0a2e 50%, #2d1b3d 100%);
+            color: white;
+        }
+
+        #canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+
+        .ui-container {
+            position: relative;
+            z-index: 10;
+            pointer-events: none;
+        }
+
+        .title {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff6b6b);
+            background-size: 300% 300%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: gradientShift 3s ease infinite;
+            font-size: 3.5em;
+            font-weight: bold;
+            text-shadow: 0 0 20px rgba(255, 107, 107, 0.5);
+            letter-spacing: 3px;
+        }
+
+        @keyframes gradientShift {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+            pointer-events: all;
+            max-width: 90%;
+        }
+
+        .cracker-btn {
+            padding: 15px 30px;
+            font-size: 16px;
+            font-weight: bold;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cracker-btn::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.3);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .cracker-btn:hover::before {
+            width: 300px;
+            height: 300px;
+        }
+
+        .cracker-btn:hover {
+            transform: translateY(-5px) scale(1.05);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .cracker-btn:active {
+            transform: translateY(-2px) scale(1.02);
+        }
+
+        .rocket { background: linear-gradient(135deg, #ff6b6b, #ee5a6f); }
+        .sparkler { background: linear-gradient(135deg, #feca57, #ff9ff3); }
+        .fountain { background: linear-gradient(135deg, #48dbfb, #0abde3); }
+        .bomb { background: linear-gradient(135deg, #ff6348, #ff4757); }
+        .flower { background: linear-gradient(135deg, #ff6b9d, #c44569); }
+        .spiral { background: linear-gradient(135deg, #a29bfe, #6c5ce7); }
+
+        .credits {
+            position: fixed;
+            bottom: 10px;
+            right: 20px;
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+            pointer-events: none;
+            font-weight: bold;
+            letter-spacing: 1px;
+        }
+
+        .instruction {
+            position: fixed;
+            top: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.8);
+            animation: pulse 2s ease-in-out infinite;
+            pointer-events: none;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.6; }
+            50% { opacity: 1; }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    
+    <div class="ui-container">
+        <h1 class="title">🎆 VIRTUAL FIRECRACKER FESTIVAL 🎆</h1>
+        <div class="instruction">Click buttons or tap anywhere on screen!</div>
+    </div>
+
+    <div class="controls">
+        <button class="cracker-btn rocket" onclick="launchRocket()">🚀 Rocket</button>
+        <button class="cracker-btn sparkler" onclick="launchSparkler()">✨ Sparkler</button>
+        <button class="cracker-btn fountain" onclick="launchFountain()">⛲ Fountain</button>
+        <button class="cracker-btn bomb" onclick="launchBomb()">💣 Bomb</button>
+        <button class="cracker-btn flower" onclick="launchFlower()">🌸 Flower</button>
+        <button class="cracker-btn spiral" onclick="launchSpiral()">🌀 Spiral</button>
+    </div>
+
+    <div class="credits">CREATED BY KUSHL NIRAULA</div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        const particles = [];
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+        // Sound generation functions
+        function playExplosionSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(150, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(10, audioContext.currentTime + 0.5);
+            
+            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.5);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.5);
+        }
+
+        function playWhistleSound() {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.setValueAtTime(800, audioContext.currentTime);
+            oscillator.frequency.exponentialRampToValueAtTime(1500, audioContext.currentTime + 0.8);
+            
+            gainNode.gain.setValueAtTime(0.2, audioContext.currentTime);
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.8);
+            
+            oscillator.start(audioContext.currentTime);
+            oscillator.stop(audioContext.currentTime + 0.8);
+        }
+
+        function playCrackleSound() {
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const oscillator = audioContext.createOscillator();
+                    const gainNode = audioContext.createGain();
+                    
+                    oscillator.connect(gainNode);
+                    gainNode.connect(audioContext.destination);
+                    
+                    oscillator.frequency.setValueAtTime(Math.random() * 1000 + 500, audioContext.currentTime);
+                    gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+                    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                    
+                    oscillator.start(audioContext.currentTime);
+                    oscillator.stop(audioContext.currentTime + 0.1);
+                }, i * 50);
+            }
+        }
+
+        class Particle {
+            constructor(x, y, vx, vy, color, size, life, gravity = 0.05, trail = false) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.color = color;
+                this.size = size;
+                this.life = life;
+                this.maxLife = life;
+                this.gravity = gravity;
+                this.trail = trail;
+                this.alpha = 1;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.vx *= 0.99;
+                this.vy *= 0.99;
+                this.life--;
+                this.alpha = this.life / this.maxLife;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.globalAlpha = this.alpha;
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                if (this.trail) {
+                    ctx.globalAlpha = this.alpha * 0.3;
+                    ctx.beginPath();
+                    ctx.arc(this.x - this.vx * 2, this.y - this.vy * 2, this.size * 0.6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+        }
+
+        function launchRocket() {
+            playWhistleSound();
+            const x = Math.random() * canvas.width;
+            const rocketParticle = new Particle(x, canvas.height, 0, -15, '#ff6b6b', 4, 60, 0.02, true);
+            particles.push(rocketParticle);
+            
+            setTimeout(() => {
+                playExplosionSound();
+                createExplosion(rocketParticle.x, rocketParticle.y, ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3'], 80);
+            }, 800);
+        }
+
+        function launchSparkler() {
+            playCrackleSound();
+            const x = Math.random() * canvas.width * 0.6 + canvas.width * 0.2;
+            const y = canvas.height * 0.7;
+            
+            for (let i = 0; i < 100; i++) {
+                setTimeout(() => {
+                    const angle = Math.random() * Math.PI * 2;
+                    const speed = Math.random() * 3 + 1;
+                    const vx = Math.cos(angle) * speed;
+                    const vy = Math.sin(angle) * speed - 2;
+                    const colors = ['#feca57', '#ffffff', '#ff9ff3', '#fffa65'];
+                    particles.push(new Particle(x, y, vx, vy, colors[Math.floor(Math.random() * colors.length)], 2, 40, 0.1));
+                }, i * 20);
+            }
+        }
+
+        function launchFountain() {
+            playWhistleSound();
+            const x = Math.random() * canvas.width * 0.6 + canvas.width * 0.2;
+            const y = canvas.height * 0.8;
+            
+            for (let i = 0; i < 150; i++) {
+                setTimeout(() => {
+                    const angle = -Math.PI / 2 + (Math.random() - 0.5) * 0.8;
+                    const speed = Math.random() * 8 + 5;
+                    const vx = Math.cos(angle) * speed;
+                    const vy = Math.sin(angle) * speed;
+                    const colors = ['#48dbfb', '#0abde3', '#00d2d3', '#5f27cd'];
+                    particles.push(new Particle(x, y, vx, vy, colors[Math.floor(Math.random() * colors.length)], 3, 60, 0.15));
+                }, i * 10);
+            }
+        }
+
+        function launchBomb() {
+            playExplosionSound();
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height * 0.5 + 100;
+            createExplosion(x, y, ['#ff6348', '#ff4757', '#ffa502', '#ff6b81'], 120);
+            
+            setTimeout(() => {
+                playExplosionSound();
+                for (let i = 0; i < 5; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = Math.random() * 100 + 50;
+                    createExplosion(
+                        x + Math.cos(angle) * distance,
+                        y + Math.sin(angle) * distance,
+                        ['#ff4757', '#ffa502', '#fffa65'],
+                        60
+                    );
+                }
+            }, 300);
+        }
+
+        function launchFlower() {
+            playExplosionSound();
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height * 0.5 + 100;
+            const colors = ['#ff6b9d', '#c44569', '#f8b500', '#ffa502'];
+            
+            for (let i = 0; i < 12; i++) {
+                const angle = (Math.PI * 2 / 12) * i;
+                for (let j = 0; j < 20; j++) {
+                    const speed = j * 0.5 + 2;
+                    const vx = Math.cos(angle) * speed;
+                    const vy = Math.sin(angle) * speed;
+                    particles.push(new Particle(x, y, vx, vy, colors[i % colors.length], 3, 80, 0.03));
+                }
+            }
+        }
+
+        function launchSpiral() {
+            playWhistleSound();
+            const x = Math.random() * canvas.width;
+            const y = Math.random() * canvas.height * 0.5 + 100;
+            const colors = ['#a29bfe', '#6c5ce7', '#fd79a8', '#fdcb6e'];
+            
+            for (let i = 0; i < 200; i++) {
+                setTimeout(() => {
+                    const angle = (i / 200) * Math.PI * 8;
+                    const radius = (i / 200) * 8;
+                    const vx = Math.cos(angle) * radius;
+                    const vy = Math.sin(angle) * radius;
+                    particles.push(new Particle(x, y, vx, vy, colors[i % colors.length], 2, 60, 0.02));
+                }, i * 8);
+            }
+        }
+
+        function createExplosion(x, y, colors, count) {
+            for (let i = 0; i < count; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const speed = Math.random() * 8 + 2;
+                const vx = Math.cos(angle) * speed;
+                const vy = Math.sin(angle) * speed;
+                const color = colors[Math.floor(Math.random() * colors.length)];
+                particles.push(new Particle(x, y, vx, vy, color, Math.random() * 3 + 2, 80, 0.08));
+            }
+        }
+
+        canvas.addEventListener('click', (e) => {
+            playExplosionSound();
+            createExplosion(e.clientX, e.clientY, ['#ff6b6b', '#feca57', '#48dbfb', '#ff9ff3', '#a29bfe'], 60);
+        });
+
+        function animate() {
+            ctx.fillStyle = 'rgba(10, 10, 26, 0.15)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            for (let i = particles.length - 1; i >= 0; i--) {
+                particles[i].update();
+                particles[i].draw();
+
+                if (particles[i].life <= 0) {
+                    particles.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // Auto-launch random crackers for ambiance
+        setInterval(() => {
+            const crackers = [launchRocket, launchSparkler, launchFountain, launchFlower, launchSpiral];
+            crackers[Math.floor(Math.random() * crackers.length)]();
+        }, 3000);
+    </script>
+</body>
+</html>
